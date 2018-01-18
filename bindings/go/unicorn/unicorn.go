@@ -7,8 +7,9 @@ import (
 )
 
 /*
-#cgo CFLAGS: -O3
-#cgo LDFLAGS: -lunicorn
+#cgo CFLAGS: -O3 -Wall -Werror -I../../../include
+#cgo LDFLAGS: -L../../../ -lunicorn
+#cgo linux LDFLAGS: -L../../../ -lunicorn -lrt
 #include <unicorn/unicorn.h>
 #include "uc.h"
 */
@@ -55,6 +56,10 @@ type Unicorn interface {
 	HookDel(hook Hook) error
 	Query(queryType int) (uint64, error)
 	Close() error
+
+	ContextSave(reuse Context) (Context, error)
+	ContextRestore(Context) error
+	Handle() *C.uc_engine
 }
 
 type uc struct {
@@ -91,7 +96,7 @@ func (u *uc) Close() (err error) {
 	u.final.Do(func() {
 		if u.handle != nil {
 			for _, uptr := range u.hooks {
-				delete(hookDataMap, uptr)
+				hookMap.remove(uptr)
 			}
 			u.hooks = nil
 			err = errReturn(C.uc_close(u.handle))
@@ -174,6 +179,7 @@ func (u *uc) MemRegions() ([]*MemRegion, error) {
 			Prot:  int(v.perms),
 		}
 	}
+	C.uc_free(unsafe.Pointer(regions))
 	return ret, nil
 }
 
@@ -220,4 +226,8 @@ func (u *uc) Query(queryType int) (uint64, error) {
 	var ret C.size_t
 	ucerr := C.uc_query(u.handle, C.uc_query_type(queryType), &ret)
 	return uint64(ret), errReturn(ucerr)
+}
+
+func (u *uc) Handle() *C.uc_engine {
+	return u.handle
 }

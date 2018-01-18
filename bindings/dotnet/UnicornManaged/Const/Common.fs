@@ -9,6 +9,10 @@ module Common =
     let UC_API_MAJOR = 1
 
     let UC_API_MINOR = 0
+    let UC_VERSION_MAJOR = 1
+
+    let UC_VERSION_MINOR = 0
+    let UC_VERSION_EXTRA = 2
     let UC_SECOND_SCALE = 1000000
     let UC_MILISECOND_SCALE = 1000
     let UC_ARCH_ARM = 1
@@ -73,6 +77,7 @@ module Common =
     let UC_MEM_WRITE_PROT = 22
     let UC_MEM_READ_PROT = 23
     let UC_MEM_FETCH_PROT = 24
+    let UC_MEM_READ_AFTER = 25
     let UC_HOOK_INTR = 1
     let UC_HOOK_INSN = 2
     let UC_HOOK_CODE = 4
@@ -86,6 +91,7 @@ module Common =
     let UC_HOOK_MEM_READ = 1024
     let UC_HOOK_MEM_WRITE = 2048
     let UC_HOOK_MEM_FETCH = 4096
+    let UC_HOOK_MEM_READ_AFTER = 8192
     let UC_HOOK_MEM_UNMAPPED = 112
     let UC_HOOK_MEM_PROT = 896
     let UC_HOOK_MEM_READ_INVALID = 144
@@ -95,6 +101,7 @@ module Common =
     let UC_HOOK_MEM_VALID = 7168
     let UC_QUERY_MODE = 1
     let UC_QUERY_PAGE_SIZE = 2
+    let UC_QUERY_ARCH = 3
 
     let UC_PROT_NONE = 0
     let UC_PROT_READ = 1

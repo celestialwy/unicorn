@@ -9,41 +9,49 @@ framework based on QEMU.
 
 Further information is available at <http://www.unicorn-engine.org>.
 -}
-module Unicorn (
-    -- * Emulator control
-    Emulator,
-    Engine,
-    Architecture(..),
-    Mode(..),
-    QueryType(..),
-    runEmulator,
-    open,
-    query,
-    start,
-    stop,
+module Unicorn
+    ( -- * Emulator control
+      Emulator
+    , Engine
+    , Architecture(..)
+    , Mode(..)
+    , QueryType(..)
+    , runEmulator
+    , open
+    , query
+    , start
+    , stop
 
-    -- * Register operations
-    regWrite,
-    regRead,
+      -- * Register operations
+    , regWrite
+    , regRead
+    , regWriteBatch
+    , regReadBatch
 
-    -- * Memory operations
-    MemoryPermission(..),
-    MemoryRegion(..),
-    memWrite,
-    memRead,
-    memMap,
-    memUnmap,
-    memProtect,
-    memRegions,
+      -- * Memory operations
+    , MemoryPermission(..)
+    , MemoryRegion(..)
+    , memWrite
+    , memRead
+    , memMap
+    , memUnmap
+    , memProtect
+    , memRegions
 
-    -- * Error handling
-    Error(..),
-    errno,
-    strerror,
+      -- * Context operations
+    , Context
+    , contextAllocate
+    , contextSave
+    , contextRestore
 
-    -- * Misc.
-    version,
-) where
+      -- * Error handling
+    , Error(..)
+    , errno
+    , strerror
+
+      -- * Misc.
+    , version
+    ) where
 
 import Control.Monad (liftM)
 import Control.Monad.Trans.Class (lift)
@@ -132,32 +140,63 @@ stop uc = do
 -------------------------------------------------------------------------------
 
 -- | Write to register.
-regWrite :: Reg r =>
-            Engine      -- ^ 'Unicorn' engine handle
-         -> r           -- ^ Register ID to write to
+regWrite :: Reg r
+         => Engine      -- ^ 'Unicorn' engine handle
+         -> r           -- ^ Register to write to
          -> Int64       -- ^ Value to write to register
          -> Emulator () -- ^ An 'Error' on failure
-regWrite uc regId value = do
-    err <- lift . alloca $ \ptr -> do
-        poke ptr value
-        ucRegWrite uc regId ptr
+regWrite uc reg value = do
+    err <- lift $ ucRegWrite uc reg value
     if err == ErrOk then
         right ()
     else
         left err
 
 -- | Read register value.
-regRead :: Reg r =>
-           Engine           -- ^ 'Unicorn' engine handle
-        -> r                -- ^ Register ID to read from
+regRead :: Reg r
+        => Engine           -- ^ 'Unicorn' engine handle
+        -> r                -- ^ Register to read from
         -> Emulator Int64   -- ^ The value read from the register on success,
                             -- or an 'Error' on failure
-regRead uc regId = do
-    (err, val) <- lift $ ucRegRead uc regId
+regRead uc reg = do
+    (err, val) <- lift $ ucRegRead uc reg
     if err == ErrOk then
         right val
     else
         left err
+
+-- | Write multiple register values.
+regWriteBatch :: Reg r
+              => Engine         -- ^ 'Unicorn' engine handle
+              -> [r]            -- ^ List of registers to write to
+              -> [Int64]        -- ^ List of values to write to the registers
+              -> Emulator ()    -- ^ An 'Error' on failure
+regWriteBatch uc regs vals = do
+    err <- lift $ ucRegWriteBatch uc regs vals (length regs)
+    if err == ErrOk then
+        right ()
+    else
+        left err
+
+-- | Read multiple register values.
+regReadBatch ::  Reg r
+             => Engine              -- ^ 'Unicorn' engine handle
+             -> [r]                 -- ^ List of registers to read from
+             -> Emulator [Int64]    -- ^ A list of register values on success,
+                                    -- or an 'Error' on failure
+regReadBatch uc regs = do
+    -- Allocate an array of the given size
+    let size = length regs
+    result <- lift . allocaArray size $ \array -> do
+        err <- ucRegReadBatch uc regs array size
+        if err == ErrOk then
+            -- If ucRegReadBatch completed successfully, pack the contents of
+            -- the array into a list and return it
+            liftM Right (peekArray size array)
+        else
+            -- Otherwise return the error
+            return $ Left err
+    hoistEither result
 
 -------------------------------------------------------------------------------
 -- Memory operations
@@ -184,12 +223,12 @@ memRead :: Engine                       -- ^ 'Unicorn' engine handle
                                         -- an 'Error' on failure
 memRead uc address size = do
     -- Allocate an array of the given size
-    result <- lift . allocaArray size $ \ptr -> do
-        err <- ucMemRead uc address ptr size
+    result <- lift . allocaArray size $ \array -> do
+        err <- ucMemRead uc address array size
         if err == ErrOk then
             -- If ucMemRead completed successfully, pack the contents of the
             -- array into a ByteString and return it
-            liftM (Right . pack) (peekArray size ptr)
+            liftM (Right . pack) (peekArray size array)
         else
             -- Otherwise return the error
             return $ Left err
@@ -256,6 +295,46 @@ memRegions uc = do
     if err == ErrOk then do
         regions <- lift $ peekArray count regionPtr
         right regions
+    else
+        left err
+
+-------------------------------------------------------------------------------
+-- Context operations
+-------------------------------------------------------------------------------
+
+-- | Allocate a region that can be used to perform quick save/rollback of the
+-- CPU context, which includes registers and some internal metadata. Contexts
+-- may not be shared across engine instances with differing architectures or
+-- modes.
+contextAllocate :: Engine           -- ^ 'Unicon' engine handle
+                -> Emulator Context -- ^ A CPU context
+contextAllocate uc = do
+    (err, contextPtr) <- lift $ ucContextAlloc uc
+    if err == ErrOk then
+        -- Return a CPU context if ucContextAlloc completed successfully
+        lift $ mkContext contextPtr
+    else
+        left err
+
+-- | Save a copy of the internal CPU context.
+contextSave :: Engine       -- ^ 'Unicorn' engine handle
+            -> Context      -- ^ A CPU context
+            -> Emulator ()  -- ^ An error on failure
+contextSave uc context = do
+    err <- lift $ ucContextSave uc context
+    if err == ErrOk then
+        right ()
+    else
+        left err
+
+-- | Restore the current CPU context from a saved copy.
+contextRestore :: Engine        -- ^ 'Unicorn' engine handle
+               -> Context       -- ^ A CPU context
+               -> Emulator ()   -- ^ An error on failure
+contextRestore uc context = do
+    err <- lift $ ucContextRestore uc context
+    if err == ErrOk then
+        right ()
     else
         left err
 

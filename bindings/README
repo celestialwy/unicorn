@@ -1,4 +1,4 @@
-This directory contains bindings & test code for Python, Java, Go, .NET and MSVC.
+This directory contains bindings & test code for Python, Java, Go and .NET.
 See <language>/README or <language>/README.TXT or <language>/README.md for how to install each binding.
 
 The following bindings are contributed by community.
@@ -6,9 +6,9 @@ The following bindings are contributed by community.
 - Java binding: by Chris Eagle.
 - Go binding: by Ryan Hileman.
 - .NET binding: by Antonio Parata.
-- MSVC binding: by Zak Escano
 - Ruby binding: by Sascha Schirra
 - Haskell binding: by Adrian Herrera.
+- VB6 binding: David Zimmer.
 
 More bindings created & maintained externally by community are available as follows.
 
@@ -20,3 +20,6 @@ More bindings created & maintained externally by community are available as foll
 
 - UnicornEngine: Perl binding (by Vikas Naresh Kumar)
     https://metacpan.org/pod/UnicornEngine
+
+- Unicorn.CR: Crystal binding (by Benoit Côté-Jodoin)
+    https://github.com/Becojo/unicorn.cr

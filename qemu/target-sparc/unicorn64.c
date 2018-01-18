@@ -10,6 +10,8 @@
 #include "uc_priv.h"
 
 
+const int SPARC64_REGS_STORAGE_SIZE = offsetof(CPUSPARCState, tlb_table);
+
 static bool sparc_stop_interrupt(int intno)
 {
     switch(intno) {
@@ -98,7 +100,7 @@ int sparc_reg_write(struct uc_struct *uc, unsigned int *regs, void* const* vals,
     return 0;
 }
 
-__attribute__ ((visibility ("default")))
+DEFAULT_VISIBILITY
 void sparc64_uc_init(struct uc_struct* uc)
 {
     register_accel_types(uc);
